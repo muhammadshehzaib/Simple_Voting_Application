@@ -32,6 +32,7 @@ const Connected = ({
     >
       <div className="flex flex-col justify-center items-center text-center">
         <h1>You are Connected to Metamask</h1>
+        <p>You can vote using your sepolia network</p>
         <p>Metamask Account: {account}</p>
         <p>Remaining Time: {remainingTime}</p>
       </div>
