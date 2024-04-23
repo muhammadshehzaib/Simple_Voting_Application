@@ -5,8 +5,18 @@ import Login from "./Components/Login";
 import Finished from "./Components/Finished";
 import Connected from "./Components/Connected";
 import "./App.css";
+import Header from "./Components/Header";
+import Footer from "./Components/Footer";
+import AOS from "aos";
+import "aos/dist/aos.css";
 
 function App() {
+  useEffect(() => {
+    AOS.init({
+      duration: 2000, // values from 0 to 3000, with step 50ms
+      once: true, // whether animation should happen only once - while scrolling down
+    });
+  }, []);
   const [provider, setProvider] = useState(null);
   const [account, setAccount] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
@@ -206,23 +216,27 @@ function App() {
 
   return (
     <div className="App">
-      {votingStatus ? (
-        isConnected ? (
-          <Connected
-            account={account}
-            candidates={candidates}
-            remainingTime={remainingTime}
-            number={number}
-            handleNumberChange={handleNumberChange}
-            voteFunction={vote}
-            showButton={CanVote}
-          />
+      <div data-aos="fade-right" data-aos-delay="300" data-aos-duration="1000">
+        <Header />
+        {votingStatus ? (
+          isConnected ? (
+            <Connected
+              account={account}
+              candidates={candidates}
+              remainingTime={remainingTime}
+              number={number}
+              handleNumberChange={handleNumberChange}
+              voteFunction={vote}
+              showButton={CanVote}
+            />
+          ) : (
+            <Login connectWallet={connectToMetamask} />
+          )
         ) : (
-          <Login connectWallet={connectToMetamask} />
-        )
-      ) : (
-        <Finished winnerName={winnerName} winnerVotes={winnerVotes} />
-      )}
+          <Finished winnerName={winnerName} winnerVotes={winnerVotes} />
+        )}
+        <Footer />
+      </div>
     </div>
   );
 }

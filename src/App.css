@@ -4,11 +4,11 @@
   align-items: center;
   justify-content: center;
   height: 100vh;
-  background-color: #f1f1f1;
 }
 
 .welcome-message {
-  font-size: 2rem;
+  font-size: clamp(1.5rem, 4vw, 2rem);
+  /* Adjusts size based on the viewport width */
   text-align: center;
   margin-bottom: 2rem;
 }
@@ -35,7 +35,6 @@
   align-items: center;
   justify-content: center;
   height: 100vh;
-  background-color: #f1f1f1;
 }
 
 .connected-header {
@@ -96,4 +95,25 @@ input[type=number] {
   box-sizing: border-box;
   font-size: 16px;
   margin-bottom: 10px;
+}
+
+.voted-message {
+  padding: 10px 20px;
+  margin: 10px 0;
+  background-color: #f4f4f9;
+  /* Light gray background */
+  border-left: 5px solid #4CAF50;
+  /* Green side border */
+  color: #4CAF50;
+  /* Green text */
+  font-size: 16px;
+  font-family: 'Arial', sans-serif;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+}
+
+.icon {
+  font-size: 20px;
+  margin-right: 10px;
 }
