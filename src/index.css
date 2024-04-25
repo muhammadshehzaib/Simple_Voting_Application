@@ -21,3 +21,28 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
 }
+
+/* Styles for the scrollbar */
+::-webkit-scrollbar {
+  width: 10px;
+  /* Width of the scrollbar */
+}
+
+/* Style for the scrollbar thumb */
+::-webkit-scrollbar-thumb {
+  background-color: #0899fa;
+  /* Color of the scrollbar thumb */
+  border-radius: 5px;
+  /* Border radius of the scrollbar thumb */
+}
+
+/* Style for the scrollbar track */
+::-webkit-scrollbar-track {
+  background-color: #dddddd;
+  /* Color of the scrollbar track */
+}
+
+/* Hide the scrollbar track */
+::-webkit-scrollbar-track {
+  display: none;
+}

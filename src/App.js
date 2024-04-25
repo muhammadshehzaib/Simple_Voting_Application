@@ -10,6 +10,7 @@ import Footer from "./Components/Footer";
 import AOS from "aos";
 import "aos/dist/aos.css";
 import detectEthereumProvider from "@metamask/detect-provider";
+import HeroSection from "./Components/HeroSection";
 
 function App() {
   useEffect(() => {
