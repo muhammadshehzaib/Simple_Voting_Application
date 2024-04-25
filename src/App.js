@@ -82,6 +82,29 @@ function App() {
     }
   }, []);
 
+  const addSepoliaNetwork = async () => {
+    try {
+      await window.ethereum.request({
+        method: "wallet_addEthereumChain",
+        params: [
+          {
+            chainId: "0xaa36a7",
+            chainName: "Sepolia",
+            nativeCurrency: {
+              name: "ETH",
+              symbol: "ETH",
+              decimals: 18,
+            },
+            rpcUrls: ["https://sepolia.infura.io/v3/"],
+            blockExplorerUrls: ["https://sepolia.etherscan.io"],
+          },
+        ],
+      });
+    } catch (addError) {
+      console.error("Failed to add Sepolia network:", addError);
+    }
+  };
+
   const checkNetwork = async (provider) => {
     const network = await provider.getNetwork();
     setNetwork(network);
@@ -100,26 +123,7 @@ function App() {
       });
     } catch (switchError) {
       if (switchError.code === 4902) {
-        try {
-          await window.ethereum.request({
-            method: "wallet_addEthereumChain",
-            params: [
-              {
-                chainId: "0xaa36a7",
-                chainName: "Sepolia",
-                nativeCurrency: {
-                  name: "ETH",
-                  symbol: "ETH", // 2-6 characters long
-                  decimals: 18,
-                },
-                rpcUrls: ["https://sepolia.infura.io/v3/"],
-                blockExplorerUrls: ["https://sepolia.etherscan.io"],
-              },
-            ],
-          });
-        } catch (addError) {
-          console.error("Failed to add Sepolia network:", addError);
-        }
+        addSepoliaNetwork();
       } else {
         console.error("Failed to switch to Sepolia network:", switchError);
       }
@@ -134,13 +138,6 @@ function App() {
       setIsConnected(false);
       setAccount(null);
     }
-  };
-
-  const startApp = (provider) => {
-    if (provider !== window.ethereum) {
-      console.error("Do you have multiple wallets installed?");
-    }
-    // Access the decentralized web!
   };
 
   const updateVotingStatus = async () => {
@@ -171,17 +168,33 @@ function App() {
 
   const canVote = async () => {
     if (provider) {
-      await provider.send("eth_requestAccounts", []);
-      const signer = provider.getSigner();
-      const contractInstance = new ethers.Contract(
-        contractAddress,
-        contractAbi,
-        signer
-      );
-      const voteStatus = await contractInstance.voters(
-        await signer.getAddress()
-      );
-      setCanVote(voteStatus);
+      try {
+        await provider.send("eth_requestAccounts", []);
+        const signer = provider.getSigner();
+        const contractInstance = new ethers.Contract(
+          contractAddress,
+          contractAbi,
+          signer
+        );
+        const network = await provider.getNetwork();
+        console.log("Current network:", network.name, network.chainId);
+
+        // Only check voting status if on the correct network
+        if (network.chainId === 11155111) {
+          // Sepolia's Chain ID
+          const userAddress = await signer.getAddress();
+          const voteStatus = await contractInstance.voters(userAddress);
+          console.log("Vote status for", userAddress, ":", voteStatus);
+          setCanVote(!voteStatus);
+        } else {
+          console.error("Wrong network. Please switch to Sepolia.");
+          alert("You are on the wrong network. Please switch to Sepolia.");
+          setCanVote(false);
+        }
+      } catch (error) {
+        console.error("Error checking voting rights:", error);
+        alert("Failed to check if you can vote.");
+      }
     }
   };
 
@@ -312,8 +325,6 @@ function App() {
     <div className="App">
       <div data-aos="fade-right" data-aos-delay="300" data-aos-duration="1000">
         <Header />
-        <p>Current Network: {network?.name || "Not connected"}</p>
-        <button onClick={() => checkNetwork(provider)}>Check Network</button>
         {votingStatus ? (
           isConnected ? (
             <Connected
