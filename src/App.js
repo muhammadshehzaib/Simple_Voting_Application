@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { ethers } from "ethers";
 import { contractAbi, contractAddress } from "./Constant/constant";
 import Login from "./Components/Login";
@@ -14,24 +14,22 @@ import detectEthereumProvider from "@metamask/detect-provider";
 function App() {
   useEffect(() => {
     AOS.init({
-      duration: 2000,
-      once: true,
+      duration: 2000, // values from 0 to 3000, with step 50ms
+      once: true, // whether animation should happen only once - while scrolling down
     });
   }, []);
-
   const [provider, setProvider] = useState(null);
   const [account, setAccount] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
   const [votingStatus, setVotingStatus] = useState(true);
-  const [remainingTime, setRemainingTime] = useState(0);
+  const [remainingTime, setremainingTime] = useState(0);
   const [candidates, setCandidates] = useState([]);
   const [number, setNumber] = useState("");
-  const [canVotes, setCanVote] = useState(true);
-  const [error, setError] = useState("");
+  const [CanVote, setCanVote] = useState(true);
+  const [error, setError] = useState(""); // State to hold the error message
   const [winnerName, setWinnerName] = useState("");
   const [winnerVotes, setWinnerVotes] = useState("");
   const [network, setNetwork] = useState(null);
-  const [userHasVoted, setUserHasVoted] = useState(false);
 
   useEffect(() => {
     const initMetamask = async () => {
@@ -55,6 +53,16 @@ function App() {
     return cleanup;
   }, []);
 
+  useEffect(() => {
+    return () => {
+      if (window.ethereum) {
+        window.ethereum.removeListener(
+          "accountsChanged",
+          handleAccountsChanged
+        );
+      }
+    };
+  });
   useEffect(() => {
     if (provider) {
       getCandidates();
@@ -114,7 +122,6 @@ function App() {
       switchToSepolia();
     }
   };
-
   const switchToSepolia = async () => {
     try {
       await window.ethereum.request({
@@ -130,7 +137,106 @@ function App() {
     }
   };
 
-  const handleAccountsChanged = (accounts) => {
+  async function updateVotingStatus() {
+    const timeRemaining = await getRemainingTime();
+    setVotingStatus(timeRemaining > 0);
+  }
+  async function vote() {
+    const provider = new ethers.providers.Web3Provider(window.ethereum);
+    await provider.send("eth_requestAccounts", []);
+    const signer = provider.getSigner();
+    const contractInstance = new ethers.Contract(
+      contractAddress,
+      contractAbi,
+      signer
+    );
+
+    const tx = await contractInstance.vote(number);
+    console.log(contractInstance.vote(number));
+    await tx.wait();
+    canVote();
+  }
+
+  async function canVote() {
+    const provider = new ethers.providers.Web3Provider(window.ethereum);
+    await provider.send("eth_requestAccounts", []);
+    const signer = provider.getSigner();
+    const contractInstance = new ethers.Contract(
+      contractAddress,
+      contractAbi,
+      signer
+    );
+    const voteStatus = await contractInstance.voters(await signer.getAddress());
+    setCanVote(voteStatus);
+  }
+
+  async function winner() {
+    const provider = new ethers.providers.Web3Provider(window.ethereum);
+    await provider.send("eth_requestAccounts", []);
+    const signer = provider.getSigner();
+    const contractInstance = new ethers.Contract(
+      contractAddress,
+      contractAbi,
+      signer
+    );
+    try {
+      const winnersList = await contractInstance.getWinner();
+      setWinnerName(winnersList.winnerName);
+      setWinnerVotes(winnersList.winnerVoteCount.toString());
+    } catch (error) {
+      console.error("Error fetching the winner:", error);
+    }
+  }
+
+  async function getCandidates() {
+    const provider = new ethers.providers.Web3Provider(window.ethereum);
+    await provider.send("eth_requestAccounts", []);
+    const signer = provider.getSigner();
+    const contractInstance = new ethers.Contract(
+      contractAddress,
+      contractAbi,
+      signer
+    );
+    const candidatesList = await contractInstance.getAllVotesOfCandidates();
+    const formattedCandidates = candidatesList.map((candidate, index) => {
+      return {
+        index: index,
+        name: candidate.name,
+        voteCount: candidate.voteCount.toNumber(),
+      };
+    });
+    setCandidates(formattedCandidates);
+  }
+
+  async function getCurrentStatus() {
+    const provider = new ethers.providers.Web3Provider(window.ethereum);
+    await provider.send("eth_requestAccounts", []);
+    const signer = provider.getSigner();
+    const contractInstance = new ethers.Contract(
+      contractAddress,
+      contractAbi,
+      signer
+    );
+    const status = await contractInstance.getWinner();
+    setVotingStatus(status);
+  }
+
+  async function getRemainingTime() {
+    const provider = new ethers.providers.Web3Provider(window.ethereum);
+    await provider.send("eth_requestAccounts", []);
+    const signer = provider.getSigner();
+    const contractInstance = new ethers.Contract(
+      contractAddress,
+      contractAbi,
+      signer
+    );
+    const time = await contractInstance.getRemainingTime();
+    const remainingInSeconds = parseInt(time.toString(), 10);
+    setremainingTime(remainingInSeconds);
+    return remainingInSeconds;
+  }
+
+  function handleAccountsChanged(accounts) {
     if (accounts.length > 0 && account !== accounts[0]) {
       setAccount(accounts[0]);
       canVote();
@@ -138,137 +244,9 @@ function App() {
       setIsConnected(false);
       setAccount(null);
     }
-  };
+  }
 
-  const updateVotingStatus = async () => {
-    const timeRemaining = await getRemainingTime();
-    setVotingStatus(timeRemaining > 0);
-  };
-
-  const vote = async () => {
-    if (!provider) {
-      console.error("Provider is not available.");
-      return;
-    }
-    if (provider) {
-      await provider.send("eth_requestAccounts", []);
-      const signer = provider.getSigner();
-      const contractInstance = new ethers.Contract(
-        contractAddress,
-        contractAbi,
-        signer
-      );
-
-      const tx = await contractInstance.vote(number);
-      console.log(contractInstance.vote(number));
-      await tx.wait();
-      canVote();
-    }
-  };
-
-  const canVote = async () => {
-    if (provider) {
-      try {
-        await provider.send("eth_requestAccounts", []);
-        const signer = provider.getSigner();
-        const contractInstance = new ethers.Contract(
-          contractAddress,
-          contractAbi,
-          signer
-        );
-        const network = await provider.getNetwork();
-        console.log("Current network:", network.name, network.chainId);
-
-        // Only check voting status if on the correct network
-        if (network.chainId === 11155111) {
-          // Sepolia's Chain ID
-          const userAddress = await signer.getAddress();
-          const voteStatus = await contractInstance.voters(userAddress);
-          console.log("Vote status for", userAddress, ":", voteStatus);
-          setCanVote(!voteStatus);
-        } else {
-          console.error("Wrong network. Please switch to Sepolia.");
-          alert("You are on the wrong network. Please switch to Sepolia.");
-          setCanVote(false);
-        }
-      } catch (error) {
-        console.error("Error checking voting rights:", error);
-        alert("Failed to check if you can vote.");
-      }
-    }
-  };
-
-  const winner = async () => {
-    if (provider) {
-      await provider.send("eth_requestAccounts", []);
-      const signer = provider.getSigner();
-      const contractInstance = new ethers.Contract(
-        contractAddress,
-        contractAbi,
-        signer
-      );
-      try {
-        const winnersList = await contractInstance.getWinner();
-        setWinnerName(winnersList.winnerName);
-        setWinnerVotes(winnersList.winnerVoteCount.toString());
-      } catch (error) {
-        console.error("Error fetching the winner:", error);
-      }
-    }
-  };
-
-  const getCandidates = async () => {
-    if (provider) {
-      await provider.send("eth_requestAccounts", []);
-      const signer = provider.getSigner();
-      const contractInstance = new ethers.Contract(
-        contractAddress,
-        contractAbi,
-        signer
-      );
-      const candidatesList = await contractInstance.getAllVotesOfCandidates();
-      const formattedCandidates = candidatesList.map((candidate, index) => {
-        return {
-          index: index,
-          name: candidate.name,
-          voteCount: candidate.voteCount.toNumber(),
-        };
-      });
-      setCandidates(formattedCandidates);
-    }
-  };
-
-  const getCurrentStatus = async () => {
-    if (provider) {
-      await provider.send("eth_requestAccounts", []);
-      const signer = provider.getSigner();
-      const contractInstance = new ethers.Contract(
-        contractAddress,
-        contractAbi,
-        signer
-      );
-      const status = await contractInstance.getWinner();
-      setVotingStatus(status);
-    }
-  };
-
-  const getRemainingTime = async () => {
-    if (provider) {
-      await provider.send("eth_requestAccounts", []);
-      const signer = provider.getSigner();
-      const contractInstance = new ethers.Contract(
-        contractAddress,
-        contractAbi,
-        signer
-      );
-      const time = await contractInstance.getRemainingTime();
-      const remainingInSeconds = parseInt(time.toString(), 10);
-      setRemainingTime(remainingInSeconds);
-      return remainingInSeconds;
-    }
-  };
-
-  const connectToMetamask = async () => {
+  async function connectToMetamask() {
     if (window.ethereum) {
       try {
         const provider = new ethers.providers.Web3Provider(window.ethereum);
@@ -284,41 +262,38 @@ function App() {
         console.error(err);
       }
     } else {
-      alert("Metamask is not detected in the browser");
       console.error("Metamask is not detected in the browser");
     }
-  };
+  }
 
-  const handleNumberChange = (e) => {
+  async function handleNumberChange(e) {
     const value = e.target.value;
     if (value.trim() === "") {
-      setError("Input cannot be empty");
+      setError("Input cannot be empty"); // Set the error message
     } else {
-      setError("");
+      setError(""); // Clear the error message
     }
     setNumber(value);
-  };
-
+  }
   const rejection = async (...parameters) => {
-    if (provider) {
-      const signer = provider.getSigner();
+    const provider = new ethers.providers.Web3Provider(window.ethereum);
+    const signer = provider.getSigner();
 
-      let signedContract = new ethers.Contract(
-        contractAddress,
-        contractAbi,
-        signer
-      );
-      signedContract
-        .method(...parameters)
-        .then((tx) => {
-          provider.waitForTransaction(tx.hash).then(() => {
-            console.log("Transaction is mined successfully");
-          });
-        })
-        .catch(() => {
-          console.log("Transaction is rejected");
+    let signedContract = new ethers.Contract(
+      contractAddress,
+      contractAbi,
+      signer
+    );
+    signedContract
+      .method(...parameters)
+      .then((tx) => {
+        provider.waitForTransaction(tx.hash).then(() => {
+          console.log("Transaction is minned successfully");
         });
-    }
+      })
+      .catch(() => {
+        console.log("Transaction is rejected");
+      });
   };
 
   return (
@@ -334,7 +309,7 @@ function App() {
               number={number}
               handleNumberChange={handleNumberChange}
               voteFunction={vote}
-              showButton={canVote}
+              showButton={CanVote}
             />
           ) : (
             <Login connectWallet={connectToMetamask} />
